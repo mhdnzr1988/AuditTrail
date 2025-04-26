@@ -9,15 +9,7 @@ namespace AuditTrail.Models
         Deleted
     }
 
-    public class AuditRequest
-    {
-        public object Before { get; set; }
-        public object After { get; set; }
-        public AuditAction Action { get; set; }
-        public string UserId { get; set; }
-    }
-
-    public class AuditTrailLog
+    public class AuditEntry
     {
         public string EntityName { get; set; }
         public AuditAction Action { get; set; }
@@ -32,4 +24,33 @@ namespace AuditTrail.Models
         public object OldValue { get; set; }
         public object NewValue { get; set; }
     }
+    public class AuditLog
+    {
+        public int Id { get; set; }
+        public string? EntityName { get; set; }
+        public AuditAction Action { get; set; }
+        public string UserId { get; set; }
+        public DateTime Timestamp { get; set; }
+
+        public List<AuditLogChange> Changes { get; set; } = new();
+    }
+
+    public class AuditLogChange
+    {
+        public int Id { get; set; }
+        public int AuditLogId { get; set; }
+        public string? PropertyName { get; set; }
+        public string? OldValue { get; set; }
+        public string? NewValue { get; set; }
+
+        public AuditLog AuditLog { get; set; }
+    }
+    public class AuditRequest
+    {
+        public dynamic Before { get; set; }
+        public dynamic After { get; set; }
+        public AuditAction Action { get; set; }
+        public string UserId { get; set; }
+    }
+
 }

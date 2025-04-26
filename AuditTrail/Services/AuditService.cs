@@ -1,16 +1,25 @@
-﻿using AuditTrail.Models;
+﻿using AuditTrail.DBClass;
+using AuditTrail.Models;
+using System;
 
 namespace AuditTrail.Services
 {
     public class AuditService : IAuditService
     {
-        public AuditTrailLog CreateAuditEntry<T>(T before, T after, AuditAction action, string userId)
+        private readonly AuditDbContext _dbContext;
+
+        public AuditService(AuditDbContext dbContext)
+        {
+            _dbContext = dbContext;
+        }
+
+        public async Task<AuditEntry> CreateAuditEntryAsync<T>(T before, T after, AuditAction action, string userId)
         {
             if (before == null && after == null)
-                throw new ArgumentException("Both objects cannot be null.");
+                throw new ArgumentException("Both before and after cannot be null.");
 
             var entityName = typeof(T).Name;
-            var auditEntry = new AuditTrailLog
+            var auditEntry = new AuditEntry
             {
                 EntityName = entityName,
                 Action = action,
@@ -18,35 +27,44 @@ namespace AuditTrail.Services
                 Timestamp = DateTime.UtcNow
             };
 
+            var properties = typeof(T).GetProperties().Where(p => p.GetIndexParameters().Length == 0); // Only properties without parameters;
+
             if (action == AuditAction.Created)
             {
-                foreach (var prop in typeof(T).GetProperties())
+    
+                foreach (var prop in properties)
                 {
                     var newValue = prop.GetValue(after);
-                    auditEntry.Changes.Add(new AuditChange
+                    if (newValue != null)
                     {
-                        PropertyName = prop.Name,
-                        OldValue = null,
-                        NewValue = newValue
-                    });
+                        auditEntry.Changes.Add(new AuditChange
+                        {
+                            PropertyName = prop.Name,
+                            OldValue = null,
+                            NewValue = newValue
+                        });
+                    }
                 }
             }
             else if (action == AuditAction.Deleted)
             {
-                foreach (var prop in typeof(T).GetProperties())
+                foreach (var prop in properties)
                 {
                     var oldValue = prop.GetValue(before);
-                    auditEntry.Changes.Add(new AuditChange
+                    if (oldValue != null)
                     {
-                        PropertyName = prop.Name,
-                        OldValue = oldValue,
-                        NewValue = null
-                    });
+                        auditEntry.Changes.Add(new AuditChange
+                        {
+                            PropertyName = prop.Name,
+                            OldValue = oldValue,
+                            NewValue = null
+                        });
+                    }
                 }
             }
             else if (action == AuditAction.Updated)
             {
-                foreach (var prop in typeof(T).GetProperties())
+                foreach (var prop in properties)
                 {
                     var oldValue = prop.GetValue(before);
                     var newValue = prop.GetValue(after);
@@ -63,7 +81,26 @@ namespace AuditTrail.Services
                 }
             }
 
+            // Save to database
+            var auditLog = new AuditLog
+            {
+                EntityName = auditEntry.EntityName,
+                Action = auditEntry.Action,
+                UserId = auditEntry.UserId,
+                Timestamp = auditEntry.Timestamp,
+                Changes = auditEntry.Changes.Select(c => new AuditLogChange
+                {
+                    PropertyName = c.PropertyName,
+                    OldValue = c.OldValue?.ToString(),
+                    NewValue = c.NewValue?.ToString()
+                }).ToList()
+            };
+
+            _dbContext.AuditLogs.Add(auditLog);
+            await _dbContext.SaveChangesAsync();
+
             return auditEntry;
         }
     }
+
 }

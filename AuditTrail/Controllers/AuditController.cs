@@ -16,11 +16,16 @@ namespace AuditTrail.Controllers
             _auditService = auditService;
         }
 
-        [HttpPost("audit")]
-        public IActionResult AuditChanges([FromBody] AuditRequest request)
+        [HttpPost("log")]
+        public async Task<IActionResult> LogAudit([FromBody] AuditRequest request)
         {
-            var AuditTrailLog = _auditService.CreateAuditEntry(request.Before, request.After, request.Action, request.UserId);
-            return Ok(AuditTrailLog);
+            var auditEntry = await _auditService.CreateAuditEntryAsync(
+                request.Before,
+                request.After,
+                request.Action,
+                request.UserId);
+
+            return Ok(auditEntry);
         }
     }
 

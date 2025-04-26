@@ -4,6 +4,7 @@ namespace AuditTrail.Services
 {
     public interface IAuditService
     {
-        AuditTrailLog CreateAuditEntry<T>(T before, T after, AuditAction action, string userId);
+        Task<AuditEntry> CreateAuditEntryAsync<T>(T before, T after, AuditAction action, string userId);
     }
+
 }
